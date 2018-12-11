@@ -1,0 +1,493 @@
+<head>
+	<title>Mario Online </title>
+	<meta charset="UTF-8">
+</head>
+<body>
+<br>
+<canvas id="myCanvas" width="1700" height="750" style="border:1px solid #cccccc;"></canvas>
+<script type="text/javascript">
+
+//creates a json object array
+let JsonFile = [{"Name":"Mario","x":-301,"y":485,"w":61,"h":96,"vert_vel":0.0,"grounded":1,"frame":0},{"Name":"Brick","x":650,"y":550,"w":115,"h":150},{"Name":"Brick","x":950,"y":450,"w":115,"h":250},{"Name":"CoinBlock","x":72,"y":228,"w":116,"h":94,"type":1},{"Name":"Brick","x":1150,"y":350,"w":115,"h":350},{"Name":"Brick","x":1550,"y":350,"w":115,"h":350},{"Name":"Brick","x":1850,"y":350,"w":315,"h":100},{"Name":"CoinBlock","x":1900,"y":50,"w":116,"h":94,"type":1}]
+
+class Sprite
+{
+	// Sprite constructor
+	constructor(model)
+	{
+		// Gives values to sprites
+		this.x = 0;
+		this.y = 0;
+		this.w = 0;
+		this.h = 0;
+		this.coin_count = 0;
+		this.model = model; // Set model to global model for all sprites
+	}
+	
+	// Collision Detection
+	Collision_detect(sprite_1, sprite_2)
+	{
+		if(sprite_1.x + sprite_1.w <= sprite_2.x)
+            return false;
+        else if(sprite_1.x >= sprite_2.x + sprite_2.w)
+            return false;
+        else if(sprite_1.y + sprite_1.h <= sprite_2.y)
+            return false;
+        else if(sprite_1.y >= sprite_2.y + sprite_2.h)
+            return false;
+        else
+            return true;
+	}
+	
+	// Sprite collision handling
+	collision_handling(sprite_1, sprite_2)
+	{
+		// Left collision
+		if (sprite_1.x + sprite_1.w >= sprite_2.x && sprite_1.prev_x + sprite_1.w <= sprite_2.x)
+		{
+			sprite_1.x = sprite_1.prev_x;
+		} 
+		// Right collision
+		else if (sprite_1.x <= sprite_2.x + sprite_2.w && sprite_1.prev_x >= sprite_2.x + sprite_2.w)
+		{
+			sprite_1.x = sprite_1.prev_x
+		} 
+		// Top collision 
+		else if (sprite_1.y + sprite_1.h >= sprite_2.y && sprite_1.prev_y <= sprite_2.y)
+		{
+			sprite_1.y = sprite_1.prev_y ;
+			sprite_1.vert_vel = 0.0;
+			sprite_1.grounded = 0;
+		}
+		// Bottom collision
+		else if (sprite_1.y <= sprite_2.y + sprite_2.h && sprite_1.prev_y >= sprite_2.y + sprite_2.h)
+		{
+			// Handle giving 5 coins from coin blocks
+			if(sprite_2.am_i_CoinBlock() && this.coin_count < 5)
+			{
+				sprite_1.y = sprite_2.y + sprite_2.h + 1;
+				sprite_1.vert_vel = 18.2;  // makes sure mario doesnt hit box more than once
+				this.spawn_Coin(sprite_2.x,sprite_2.y,sprite_2.w);
+				this.coin_count++;
+				// Draw empty block after 5 coins
+				if(this.coin_count > 4)
+				{
+					this.draw_empty(sprite_2.x,sprite_2.y,sprite_2.w,sprite_2.h,this.model);
+				}
+				
+			}
+			else
+			{
+				sprite_1.y = sprite_2.y + sprite_2.h + 1;
+				sprite_1.vert_vel = 0;
+			}
+		}
+	}
+	
+	// Creates a coin with random horizontal velocity and a set vertical velocity
+	spawn_Coin(x,y,w)
+    {
+        let horz_vel = (Math.random() * 14) - 11;
+        let vert_vel = -12.9;
+        this.c = new Coin(x,y,w,vert_vel,horz_vel,this.model);
+        this.model.sprites.push(this.c);
+    }
+	
+	// Changes coinblock image to empty image
+	draw_empty(x,y,w,h,t,model)
+	{
+		this.coin_block = new CoinBlock(x,y,w,h,this.model,"coinblock2.png");
+		this.model.sprites.push(this.coin_block);
+	}
+	
+	// Overridden methods
+	am_i_Brick()
+	{
+		return false;
+	}
+	
+	am_i_CoinBlock()
+	{
+		return false;
+	}
+	
+	am_i_Mario()
+	{
+		return false;
+	}
+}
+
+class Mario extends Sprite //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	// Mario constructor
+	constructor(x, y, model)
+	{
+		super(model); // gets the model from the sprite constructor
+		// Load image files
+		this.img0 = new Image();		
+		this.img1 = new Image();		
+		this.img2 = new Image();		
+		this.img3 = new Image();		
+		this.img4 = new Image();		
+		this.img0.src = "mario1.png";
+		this.img1.src = "mario2.png";
+		this.img2.src = "mario3.png";
+		this.img3.src = "mario4.png";
+		this.img4.src = "mario5.png";
+		
+		// Sets all mario images in an array
+		this.MarioArray = new Array(this.img0,this.img1,this.img2,this.img3,this.img4);
+		this.frame = 0;
+		this.x = x;
+		this.y = y;
+		this.w = 60;
+		this.h = 95;
+		this.prev_x = 300;
+		this.prev_y = 400;
+		this.vert_vel = 0;
+		this.grounded = 0;
+	}
+	
+	// Get mario's previous location 
+	where_mario()
+	{
+		this.prev_x = this.x;
+		this.prev_y = this.y;
+	}
+	
+	am_i_Mario()
+	{
+		return true;
+	}
+	
+	update()
+	{
+		this.model.scroll_pos = this.x - 300;
+		this.vert_vel += 5.8; // makes mario fall due to gravity
+		this.y += this.vert_vel;
+		if(this.y > 600) // creates a ground 
+		{
+			this.vert_vel = 0.0;
+			this.grounded = 0;
+			this.y = 600;
+		}
+		// Run through the sprites list and detect collision to mario
+		for(let i = 0; i < this.model.sprites.length; i++)
+		{
+			let s = this.model.sprites[i];
+			if(s.am_i_Brick())
+			{
+				if(this.collision_detect(this, s))
+				{
+					this.collision_handling(this, s);
+				}
+			}
+		}
+		
+		// Update the frames mario was on the ground
+		this.grounded++;
+	}
+	
+	// Frame updating methods
+	frame_update()
+    {
+        this.frame++;
+        if(this.frame > 4)
+        {
+            this.frame = 0;
+        }
+    }
+	
+	
+	// Draw mario
+	draw(ctx)
+	{
+		ctx.drawImage(this.MarioArray[this.frame], this.x - this.model.scroll_pos, this.y);
+	}
+	
+
+}
+
+class Brick extends Sprite //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	// Brick constructor 
+	constructor(x_pos, y_pos, width, height, model, image_url)
+	{
+		super(model);
+		this.image = new Image();
+		this.image.src = image_url;
+		this.x = x_pos;
+		this.y = y_pos;
+		this.w = width;
+		this.h = height;
+	}
+	
+	// Override statement
+	am_i_Brick()
+	{
+		return true;
+	}
+	
+	update()
+	{
+	}
+	
+	// Draws bricks
+	draw(ctx)
+	{
+		ctx.drawImage(this.image, this.x - this.model.scroll_pos, this.y, this.w, this.h);
+	}
+}
+
+class CoinBlock extends Sprite //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{ // coinblock constructor
+	constructor(x_pos, y_pos, width, height, model,image_url)
+	{
+		super(model);
+		this.image = new Image();
+		this.image.src = image_url;
+		this.x = x_pos;
+		this.y = y_pos;
+		this.w = width;
+		this.h = height;
+	}
+	
+	am_i_CoinBlock()
+	{
+		return true;
+	}
+	
+	// Check for collisions with the coin block
+	update()
+	{
+		for(let i = 0; i < this.model.sprites.length; i++)
+		{
+			let s = this.model.sprites[i];
+			if(s.am_i_Mario())
+			{
+				if(this.collision_detect(s, this))
+				{
+					this.collision_handling(s, this);
+				}
+			}
+		}
+	}
+	
+	// Draw method for coin block
+	draw(ctx)
+	{
+		ctx.drawImage(this.image, this.x - this.model.scroll_pos, this.y, this.w, this.h);
+	}
+}
+
+class Coin extends Sprite  //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{ //coin constructor
+	constructor(b_x, b_y, b_w, vert_vel, horz_vel, model)
+	{
+		super(model);
+		this.image = new Image();
+		this.image.src = "coin.png";
+		this.x = b_x + (b_w / 2);
+		this.y = b_y;
+		this.w = 70;
+		this.h = 70;
+		this.vert_vel = vert_vel;
+		this.horz_vel = horz_vel;
+	}
+	
+	// Updates the coin
+	update(i)
+	{
+		// Give coin gravity
+		this.y += this.vert_vel;
+		this.vert_vel += 1.8; // increases the vert velocity
+		
+		this.x += this.horz_vel;
+		
+		// Removes coin after it cant be seen
+		if(this.y > 1400)
+		{
+			this.model.sprites.splice(i,1);
+		}
+	}
+	
+	// Draw method for coin
+	draw(ctx)
+	{
+		ctx.drawImage(this.image, this.x - this.model.scroll_pos, this.y, this.w, this.h)
+	}
+}	
+	
+
+class Model  //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	// Model constructor 
+	constructor()
+	{
+		this.sprites = []; // creates a sprite array
+		this.scroll_pos = 0;
+		this.load();
+	}
+	
+	// Load json objects from the array
+	unmarshal()
+	{
+		// Clears the array
+		this.sprites = [];
+		
+		//loops through json file
+		for(let i = 0; i < JsonFile.length; i++)
+		{
+			if(JsonFile[i].Name === "Mario") // finds name of the object in json file
+			{
+				this.mario = new Mario(JsonFile[i].x, JsonFile[i].y, this);
+				this.sprites.push(this.mario);
+			}
+			
+			else if(JsonFile[i].Name === "Brick")
+			{
+				this.brick = new Brick(JsonFile[i].x, JsonFile[i].y, JsonFile[i].w, JsonFile[i].h, this, "brick.png");
+				this.sprites.push(this.brick);
+			}
+			
+			else if(JsonFile[i].Name === "CoinBlock")
+			{
+				this.coin_block = new CoinBlock(JsonFile[i].x, JsonFile[i].y, JsonFile[i].w, JsonFile[i].h, this, "coinblock1.png");
+				this.sprites.push(this.coin_block);
+			}
+			
+		}	
+	}
+
+	// Loop through the array of sprites and update them in model
+	update()
+	{
+		for(let i = 0; i < this.sprites.length; i++)
+		{
+			this.sprites[i].update(i);
+		}
+	}
+
+	load()
+	{
+		this.unmarshal();
+	}
+}
+
+class View  //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	// Model reference and set background image
+	constructor(model)
+	{
+		this.model = model;
+		this.canvas = document.getElementById("myCanvas");
+		this.background = new Image();
+		this.background.src = "CLOUDS.png";
+		this.grass = new Image();
+		this.grass.src = "grass.png";
+	}
+
+	update()
+	{
+		// Draw background
+		let ctx = this.canvas.getContext("2d");
+		ctx.fillStyle = "cyan";
+		ctx.fillRect(0,0,1700,800);
+		ctx.drawImage(this.background, -200 - (this.model.scroll_pos/8) ,0, 3000, 830);
+		ctx.drawImage(this.grass, -200 - (this.model.scroll_pos/8)  ,695, 3000, 200);
+		
+		// Loops through array of sprites and calls their draw method
+		for(let i = 0; i < this.model.sprites.length; i++)
+		{
+			let sprite = this.model.sprites[i];
+			sprite.draw(ctx);
+		}
+	}
+}
+
+class Controller //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	constructor(model, view)
+	{
+		this.model = model;
+		this.view = view;
+		this.key_right = false;
+		this.key_left = false;
+		this.key_up = false;
+		this.key_down = false;
+		let self = this;
+		view.canvas.addEventListener("click", function(event) { self.onClick(event); });
+		document.addEventListener('keydown', function(event) { self.keyDown(event); }, false);
+		document.addEventListener('keyup', function(event) { self.keyUp(event); }, false);
+	}
+
+	onClick(event)
+	{
+		//this.model.onclick(event.pageX - this.view.canvas.offsetLeft, event.pageY - this.view.canvas.offsetTop);
+	}
+
+	keyDown(event)
+	{
+		if(event.keyCode == 39) this.key_right = true;
+		else if(event.keyCode == 37) this.key_left = true;
+		else if(event.keyCode == 38) this.key_up = true;
+		else if(event.keyCode == 40) this.key_down = true;
+		else if(event.keyCode == 32) this.key_space = true;
+		else if(event.keyCode == 76) this.model.load(); // calls the load method when L is pressed loading the map
+	}
+
+	keyUp(event)
+	{
+		if(event.keyCode == 39) this.key_right = false;
+		else if(event.keyCode == 37) this.key_left = false;
+		else if(event.keyCode == 38) this.key_up = false;
+		else if(event.keyCode == 40) this.key_down = false;
+		else if(event.keyCode == 32) this.key_space = false;
+	}
+
+	update()
+	{
+		this.model.sprites[0].where_mario(); // Updates marios previous location
+		// Marios movement keys
+		if(this.key_right)
+		{
+			this.model.sprites[0].x += 20;
+			this.model.sprites[0].frame_update();
+		}
+		if(this.key_left) 
+		{
+			this.model.sprites[0].x -= 20;
+			this.model.sprites[0].frame_update();
+			
+		}
+		if(this.key_space)
+		{ 
+			if(this.model.sprites[0].grounded < 5)
+				this.model.sprites[0].vert_vel -= 19.8;
+		}
+	}
+}
+
+class Game //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+	constructor()
+	{
+		this.model = new Model();
+		this.view = new View(this.model);
+		this.controller = new Controller(this.model, this.view);
+	}
+
+	onTimer()
+	{
+		this.controller.update();
+		this.model.update();
+		this.view.update();
+	}
+}
+
+let game = new Game();
+let timer = setInterval(function() { game.onTimer(); }, 40);
+
+</script>
+
+</body>
